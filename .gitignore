@@ -1,0 +1,27 @@
+# NEU dataset images – not for redistribution
+data/raw/
+
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# PyCharm / IDE settings
+.idea/
+
+# Sensitive files
+kaggle.json
+
+# Database files (if any)
+*.sqlite
+*.db
+
+# Jupyter notebook checkpoints (if any)
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+.venv311/
+.venv/
+requirements_backup.txt
