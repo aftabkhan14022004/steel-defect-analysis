@@ -1,4 +1,5 @@
 STEEL SURFACE DEFECT ANALYSIS 🔩
+
 A Two-Phase Industrial Quality Analytics & Deep Learning Project
 Combining real-world manufacturing data with SQL, statistics, and computer vision to answer one question: What drives steel surface defects?
 
@@ -6,12 +7,15 @@ Combining real-world manufacturing data with SQL, statistics, and computer visio
 This project investigates quality drivers in a hot-strip steel mill through two complementary approaches:
 
 Phase 1: Data Analytics & SQL
+
 Analyzed 1,800 real steel defect images linked with 5,000 synthetic production batches to test whether process parameters (shift, temperature, speed) affect defect occurrence.
 
 Phase 2: Deep Learning & Computer Vision
+
 Built a CNN classifier using transfer learning to identify steel surface defects directly from images — achieving 99.17% test accuracy.
 
 🔍 PHASE 1: SQL ANALYSIS & STATISTICAL TESTING
+
 The Dataset
 Source	Description
 NEU Steel Surface Defect Database	1,800 real grayscale images, 6 defect classes
@@ -46,7 +50,9 @@ Speed correlates with defects	Pearson r	0.058	Not significant
 Key Insight: No single process parameter showed statistical significance — proving the importance of rigorous testing before assuming causal relationships.
 
 🤖 PHASE 2: CNN IMAGE CLASSIFIER
+
 Why Deep Learning?
+
 When tabular data showed no clear signal, the images themselves held the answer.
 
 Model Architecture
@@ -114,31 +120,41 @@ Download NEU dataset from Kaggle
 Place NEU-DET folder inside data/raw/
 
 Generate and load data:
+
 python Phase1_SQL_Analysis/scripts/generate_data.py
 python Phase1_SQL_Analysis/scripts/load_neu_data.py
 
 Run analysis:
+
 python Phase1_SQL_Analysis/scripts/eda.py
 python Phase1_SQL_Analysis/scripts/statistical_tests.py
 
 Phase 2 Setup
+
 Train the model:
+
 python Phase2_CNN_Classifier/train_model.py
 
 Evaluate:
+
 python Phase2_CNN_Classifier/evaluate.py
 
 Predict single image:
+
 python Phase2_CNN_Classifier/predict.py
 
 🛠️ TECH STACK
+
 Phase 1
+
 Python, pandas, NumPy, MySQL, SQL, Matplotlib, Seaborn, SciPy
 
 Phase 2
+
 TensorFlow, Keras, MobileNetV2, scikit-learn, Matplotlib, Seaborn
 
 💡 KEY LEARNINGS
+
 Designed normalized relational database with foreign keys
 
 Wrote production-level SQL (CTEs, window functions, subqueries)
@@ -152,9 +168,13 @@ Built transfer learning CNN with 99.17% test accuracy
 Learned when tabular analysis fails and image-based approaches succeed
 
 👤 AUTHOR
+
 Aftab Khan
+
 Email: aftabkhan14022004@gmail.com
+
 LinkedIn: https://www.linkedin.com/in/aftab1402/
+
 GitHub: https://github.com/aftabkhan14022004
 
 If this project helped you, consider giving it a star on GitHub!
