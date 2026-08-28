@@ -1,163 +1,169 @@
-# Steel Surface Defect Analysis
+STEEL SURFACE DEFECT ANALYSIS 🔩
+A Two-Phase Industrial Quality Analytics & Deep Learning Project
+Combining real-world manufacturing data with SQL, statistics, and computer vision to answer one question: What drives steel surface defects?
 
-A portfolio project that combines **real steel surface defect images** with **synthetic production data** to explore quality drivers using SQL, exploratory data analysis, and statistical testing.
+📊 PROJECT OVERVIEW
+This project investigates quality drivers in a hot-strip steel mill through two complementary approaches:
 
----
+Phase 1: Data Analytics & SQL
+Analyzed 1,800 real steel defect images linked with 5,000 synthetic production batches to test whether process parameters (shift, temperature, speed) affect defect occurrence.
 
-## Key Features
+Phase 2: Deep Learning & Computer Vision
+Built a CNN classifier using transfer learning to identify steel surface defects directly from images — achieving 99.17% test accuracy.
 
-- **Real + synthetic data** – 1 800 NEU defect images linked to 5 000 simulated production batches
-- **Deliberate data messiness** – missing values, duplicate records, mixed timestamp formats (like real factory logs)
-- **Advanced SQL** – window functions, CTEs, subqueries, date handling
-- **Statistical testing** – chi‑square, t‑test, Pearson correlation, conditional probability heatmap
-- **Reproducible pipeline** – every step scripted, from data generation to final visualizations
+🔍 PHASE 1: SQL ANALYSIS & STATISTICAL TESTING
+The Dataset
+Source	Description
+NEU Steel Surface Defect Database	1,800 real grayscale images, 6 defect classes
+Synthetic Production Data	5,000 batches with furnace temp, rolling speed, shift
+MySQL Database	3 normalized tables with foreign keys
+Defect Types Analyzed
+Crazing | Inclusion | Patches | Pitted Surface | Rolled-in Scale | Scratches
 
----
+Realistic Data Challenges Introduced
+2% missing furnace temperatures (sensor failures)
 
-## Data Sources
+5 duplicate batch IDs (double-entry errors)
 
-- **NEU Steel Surface Defect Database (Kaggle)** – 6 defect types, 1 800 grayscale images
-- **Synthetic production data** – furnace temperature (1 200 °C mean), rolling speed (5–15 m/min), 3‑shift pattern
-  - 2% missing furnace temperatures
-  - 5 duplicate batch IDs
-  - Timestamps in two formats (with and without seconds)
+Mixed timestamp formats (system inconsistencies)
 
-All data is stored in a **MySQL** database with three tables: `production_batches`, `defect_inspections`, `machine_parameters`.
+What I Did
+Designed 3-table relational database with referential integrity
 
----
+Wrote advanced SQL queries: CTEs, window functions, subqueries
 
-## Project Structure
+Cleaned messy data: handled nulls, duplicates, inconsistent dates
 
+Created 7 EDA visualizations including probability heatmaps
 
-```
- steel-defect-analysis/
-  ├── data/raw/ # NEU-DET dataset (not pushed to GitHub)
-  ├── scripts/
-  │ ├── generate_data.py # Creates synthetic production data → MySQL
-  │ ├── load_neu_data.py # Reads NEU images → defect_inspections table
-  │ ├── eda.py # Data cleaning, merging, EDA plots
-  │ └── statistical_tests.py # Hypothesis tests + probability heatmap
-  ├── sql/
-  │ ├── schema.sql # Database and table creation
-  │ └── analysis_queries.sql # Advanced SQL queries (window functions, CTEs, subqueries)
-  ├── fig/ # Saved plots
-  ├── requirements.txt
-  └── README.md
+Ran formal statistical tests with honest interpretation
 
-```
----
+Results
+Hypothesis	Test	p-value	Verdict
+Shift affects defect type	Chi-square	0.126	Not significant
+Temperature affects defect rate	Welch's t-test	0.276	Not significant
+Speed correlates with defects	Pearson r	0.058	Not significant
+Key Insight: No single process parameter showed statistical significance — proving the importance of rigorous testing before assuming causal relationships.
 
-## Advanced SQL Queries
+🤖 PHASE 2: CNN IMAGE CLASSIFIER
+Why Deep Learning?
+When tabular data showed no clear signal, the images themselves held the answer.
 
-All queries are in `sql/analysis_queries.sql`:
+Model Architecture
+Input (224×224×3) → MobileNetV2 (Pre-trained, Frozen) → GlobalAveragePooling2D → Dense(128, ReLU) → Dropout(0.3) → Dense(6, Softmax)
 
-1. **Rolling defect rate** – CTE cleans timestamps (`STR_TO_DATE`), then a window function computes a 5‑batch moving average of defect counts.
-2. **Shift‑level aggregation** – CTE joins batches and inspections, then groups by shift to get total batches, total defects, and average defects per inspection.
-3. **High‑defect batches vs. machine settings** – Subquery finds the overall average defects per batch, and the main query returns batches above that average with machine/operator details.
+Training Results
+Metric	Score
+Training Accuracy	99.93%
+Validation Accuracy	98.89%
+Test Accuracy	99.17%
+F1-Score (Macro)	0.99
+Misclassifications	3 out of 360 images
+Note: The NEU dataset has visually distinct defect classes and is well-suited for transfer learning. Published research on this dataset reports accuracies of 95–100%. This result is consistent with existing literature.
 
----
+Key Files
+File	Purpose
+data_prep.py	Image loading and preprocessing
+train_model.py	Transfer learning model training
+evaluate.py	Metrics and confusion matrix
+predict.py	Single image prediction
+best_model.h5	Trained model
+📁 PROJECT STRUCTURE
+text
+steel-defect-analysis/
+├── Phase1_SQL_Analysis/
+│   ├── scripts/
+│   │   ├── generate_data.py
+│   │   ├── load_neu_data.py
+│   │   ├── eda.py
+│   │   └── statistical_tests.py
+│   ├── sql/
+│   │   ├── schema.sql
+│   │   └── analysis_queries.sql
+│   └── fig/
+├── Phase2_CNN_Classifier/
+│   ├── data_prep.py
+│   ├── train_model.py
+│   ├── evaluate.py
+│   ├── predict.py
+│   ├── best_model.h5
+│   └── confusion_matrix.png
+├── README.md
+├── requirements.txt
+└── .gitignore
+🚀 SETUP INSTRUCTIONS
+Prerequisites
+Python 3.11
 
-## Exploratory Data Analysis
+MySQL (XAMPP)
 
-- Merged all three tables and cleaned timestamps (two formats → single datetime column)
-- Detected and removed duplicate batch IDs, noted missing furnace temperatures
-- Created multiple visualizations:
-  - Defect type distribution (balanced across six classes)
-  - Defect counts by shift (countplot and boxplot)
-  - Scatter plot of total defects vs. rolling speed (with regression line)
-  - Furnace temperature histogram with median line
+Git
 
----
+Quick Start
+git clone https://github.com/aftabkhan14022004/steel-defect-analysis.git
+cd steel-defect-analysis
+pip install -r requirements.txt
 
-## Statistical Tests & Findings
+Phase 1 Setup
+Create MySQL database steel_defects
 
-All tests used only inspected batches. Results are printed by `statistical_tests.py`.
+Import schema: Phase1_SQL_Analysis/sql/schema.sql
 
-| Hypothesis | Test | Statistic | p‑value | Significant? |
-|------------|------|-----------|---------|:---:|
-| Defect type depends on shift | Chi‑square | χ² = 15.18 | 0.126 | No |
-| Furnace temperature (high vs low median) affects defect rate | Welch’s t‑test | t = -1.09 | 0.276 | No |
-| Rolling speed correlates with total defects | Pearson r | r = 0.049 | 0.058 | No |
+Download NEU dataset from Kaggle
 
-**Interpretation:** None of the three factors showed a statistically significant effect in this dataset. This is a realistic outcome that highlights why rigorous hypothesis testing is essential before assuming process‑defect relationships in a manufacturing environment.
+Place NEU-DET folder inside data/raw/
 
----
+Generate and load data:
+python Phase1_SQL_Analysis/scripts/generate_data.py
+python Phase1_SQL_Analysis/scripts/load_neu_data.py
 
-## Probability Heatmap
+Run analysis:
+python Phase1_SQL_Analysis/scripts/eda.py
+python Phase1_SQL_Analysis/scripts/statistical_tests.py
 
-A heatmap of **P(defect_type | shift)** was generated to visualize conditional probabilities:
+Phase 2 Setup
+Train the model:
+python Phase2_CNN_Classifier/train_model.py
 
-![Probability Heatmap](fig/probability_heatmap.png)
+Evaluate:
+python Phase2_CNN_Classifier/evaluate.py
 
-Even without statistical significance, the heatmap provides a qualitative view of defect distribution across shifts.
+Predict single image:
+python Phase2_CNN_Classifier/predict.py
 
----
+🛠️ TECH STACK
+Phase 1
+Python, pandas, NumPy, MySQL, SQL, Matplotlib, Seaborn, SciPy
 
-## Setup Instructions
+Phase 2
+TensorFlow, Keras, MobileNetV2, scikit-learn, Matplotlib, Seaborn
 
-1. **Clone the repository**  
-   ```bash
-   git clone https://github.com/aftabkhan14022004/steel-defect-analysis.git
-   cd steel-defect-analysis
-   ```
-   
-2. **Install dependencies**
-    ```bash
-   pip install -r requirements.txt
-   ```
+💡 KEY LEARNINGS
+Designed normalized relational database with foreign keys
 
-3. **Set up MySQL**
-- Start your MySQL server (XAMPP, WAMP, etc.)
+Wrote production-level SQL (CTEs, window functions, subqueries)
 
-- Create a database named `steel_defects` 
+Handled real-world messy data and documented every decision
 
-- Run `sql/schema.sql` to create the three tables (you can do this in phpMyAdmin)
+Ran formal hypothesis tests and interpreted p-values honestly
 
-4. **Download the NEU dataset**
-- Download from [Kaggle NEU-DET](https://www.kaggle.com/datasets/kaustubhdikshit/neu-surface-defect-database)  
-- Place the `NEU-DET` folder inside `data/raw/` so that `data/raw/NEU-DET/train/images/` (and `valid/images/`) exists
+Built transfer learning CNN with 99.17% test accuracy
 
-5. **Populate the database**
-    ```bash
-   python scripts/generate_data.py
-   python scripts/load_neu_data.py
-   ```
-6. **Run the analysis**
-   ```bash
-   python scripts/eda.py
-   python scripts/statistical_tests.py
-   ```
+Learned when tabular analysis fails and image-based approaches succeed
 
+👤 AUTHOR
+Aftab Khan
+Email: aftabkhan14022004@gmail.com
+LinkedIn: https://www.linkedin.com/in/aftab1402/
+GitHub: https://github.com/aftabkhan14022004
 
-## Technologies Used
-- **Python**: pandas, NumPy, matplotlib, seaborn, scipy, mysql-connector-python
+If this project helped you, consider giving it a star on GitHub!
 
-- **MySQL**: CTEs, window functions, subqueries,  `STR_TO_DATE`, `CASE`
+Copy everything above. Paste into README.md. Save. Then push:
 
-- **Data Engineering**: synthetic data generation, handling of missing/duplicate/inconsistent data
+git add README.md
+git commit -m "Final README with accuracy context"
+git push origin master
 
-- **Statistics**: chi‑square test, Welch’s t‑test, Pearson correlation, conditional probability
-  
----
+Your project is complete. 🎉
 
-## What I Learned
-
-- How to **design a relational database schema** and enforce referential integrity with foreign keys
-- Writing **advanced SQL queries** – CTEs, window functions, subqueries, and cleaning messy date strings with `STR_TO_DATE`
-- **Handling real‑world data issues** – missing values, duplicate records, inconsistent formats – and documenting every cleaning decision
-- **Exploratory data analysis** with pandas, matplotlib, and seaborn to uncover patterns before formal testing
-- **Statistical hypothesis testing** – chi‑square, Welch’s t‑test, Pearson correlation – and interpreting p‑values honestly
-- Building a **reproducible data pipeline** from raw data to final visualizations and documentation
-- **Communicating results** clearly in a well‑structured README that tells the project’s story
-  
-
----
-
-## Author
-
-**Aftab Khan**  
-📧 aftabkhan14022004@gmail.com  
-🔗 [LinkedIn](https://www.linkedin.com/in/aftab1402/)
-🐙 [GitHub](https://github.com/aftabkhan14022004)
-
-Feel free to reach out for collaboration, feedback, or just to connect!
