@@ -1,81 +1,99 @@
-STEEL SURFACE DEFECT ANALYSIS 🔩
+# Steel Surface Defect Analysis 🔩
 
-A Two-Phase Industrial Quality Analytics & Deep Learning Project
-Combining real-world manufacturing data with SQL, statistics, and computer vision to answer one question: What drives steel surface defects?
+**🔗 Try it live:** [Steel Defect Inspection System](https://steel-defect-analysis.streamlit.app)
 
-📊 PROJECT OVERVIEW
-This project investigates quality drivers in a hot-strip steel mill through two complementary approaches:
+A two-phase project combining SQL, statistical analysis, and deep learning for industrial quality inspection.
 
-Phase 1: Data Analytics & SQL
+- **Phase 1:** SQL database design, EDA, and hypothesis testing on synthetic production data
+- **Phase 2:** CNN classifier for steel surface defect detection, deployed as an interactive Streamlit app
 
-Analyzed 1,800 real steel defect images linked with 5,000 synthetic production batches to test whether process parameters (shift, temperature, speed) affect defect occurrence.
+---
 
-Phase 2: Deep Learning & Computer Vision
+## Project Overview
 
-Built a CNN classifier using transfer learning to identify steel surface defects directly from images — achieving 99.17% test accuracy.
+### Phase 1 — Data Analytics & SQL
+Designed a 3-table MySQL database combining 1,800 real NEU steel defect images with 5,000 synthetic production batches. Wrote advanced SQL (CTEs, window functions, subqueries), performed EDA, and ran statistical tests.
 
-🔍 PHASE 1: SQL ANALYSIS & STATISTICAL TESTING
+### Phase 2 — Deep Learning & Streamlit App
+Built a CNN classifier using MobileNetV2 transfer learning, achieving 98.89% test accuracy. Deployed as a live industrial inspection system with single-image and batch modes.
 
-The Dataset
-Source	Description
-NEU Steel Surface Defect Database	1,800 real grayscale images, 6 defect classes
-Synthetic Production Data	5,000 batches with furnace temp, rolling speed, shift
-MySQL Database	3 normalized tables with foreign keys
-Defect Types Analyzed
-Crazing | Inclusion | Patches | Pitted Surface | Rolled-in Scale | Scratches
+---
 
-Realistic Data Challenges Introduced
-2% missing furnace temperatures (sensor failures)
+## Phase 2 Results
 
-5 duplicate batch IDs (double-entry errors)
+| Metric | Value |
+|--------|-------|
+| Test Accuracy | 98.89% |
+| Correct | 356/360 |
+| Misclassified | 4 |
+| F1-Score (Macro) | 0.99 |
+| Cross-Validation Mean | 99.56% ± 0.38% |
+| Cross-Validation Range | 98.89% – 100.00% |
 
-Mixed timestamp formats (system inconsistencies)
+### Misclassified Images
 
-What I Did
-Designed 3-table relational database with referential integrity
+| File | Actual | Predicted | Confidence |
+|------|--------|-----------|------------|
+| inclusion_296.jpg | inclusion | scratches | 76.23% |
+| pitted_surface_272.jpg | pitted_surface | inclusion | 49.86% |
+| pitted_surface_280.jpg | pitted_surface | inclusion | 64.49% |
+| pitted_surface_297.jpg | pitted_surface | inclusion | 60.60% |
 
-Wrote advanced SQL queries: CTEs, window functions, subqueries
+*Note: pitted_surface vs inclusion is the model's genuine boundary case — confirmed consistently across evaluation scripts and the live app.*
 
-Cleaned messy data: handled nulls, duplicates, inconsistent dates
+### Confusion Matrix
+![Confusion Matrix](Phase2_CNN_Classifier/confusion_matrix.png)
 
-Created 7 EDA visualizations including probability heatmaps
+---
 
-Ran formal statistical tests with honest interpretation
+## Known Limitations
 
-Results
-Hypothesis	Test	p-value	Verdict
-Shift affects defect type	Chi-square	0.126	Not significant
-Temperature affects defect rate	Welch's t-test	0.276	Not significant
-Speed correlates with defects	Pearson r	0.058	Not significant
-Key Insight: No single process parameter showed statistical significance — proving the importance of rigorous testing before assuming causal relationships.
+- Validation accuracy reached 100% on the NEU dataset's controlled imaging conditions. This does not imply perfect real-world performance.
+- Model shows genuine ambiguity between `pitted_surface` and `inclusion` — 3 of 4 misclassified images are this pair.
+- Streamlit app may show slightly different confidence values than the evaluation script due to image resizing method. The predicted class remains consistent. Reported metrics are from the evaluation script.
+- Phase 1 uses synthetic production data — statistical results describe patterns in that dataset, not verified physical causality.
+- TensorFlow 2.15.0 with protobuf 4.25.9 recommended to avoid compatibility warnings.
 
-🤖 PHASE 2: CNN IMAGE CLASSIFIER
+---
 
-Why Deep Learning?
+## Debugging Journey — What I Actually Fixed
 
-When tabular data showed no clear signal, the images themselves held the answer.
+The model accuracy was easy. The engineering around it was the real work.
 
-Model Architecture
-Input (224×224×3) → MobileNetV2 (Pre-trained, Frozen) → GlobalAveragePooling2D → Dense(128, ReLU) → Dropout(0.3) → Dense(6, Softmax)
+1. **Silent model checkpoint mismatch** — Two different `best_model.h5` files existed in separate working directories, causing three contradictory accuracy numbers (97.22%, 98.89%, 99.17%) across different evaluation scripts. Traced via file timestamps and consolidated to a single source of truth.
 
-Training Results
-Metric	Score
-Training Accuracy	99.93%
-Validation Accuracy	98.89%
-Test Accuracy	99.17%
-F1-Score (Macro)	0.99
-Misclassifications	3 out of 360 images
-Note: The NEU dataset has visually distinct defect classes and is well-suited for transfer learning. Published research on this dataset reports accuracies of 95–100%. This result is consistent with existing literature.
+2. **Caught bad advice before acting on it** — When debugging a preprocessing discrepancy, I verified the actual training script's code rather than trusting a remembered claim about it — the claim turned out to be wrong, and acting on it would have introduced a real bug into working code.
 
-Key Files
-File	Purpose
-data_prep.py	Image loading and preprocessing
-train_model.py	Transfer learning model training
-evaluate.py	Metrics and confusion matrix
-predict.py	Single image prediction
-best_model.h5	Trained model
-📁 PROJECT STRUCTURE
-text
+3. **Python version deployment blocker** — Streamlit Cloud defaulted to Python 3.14, for which no TensorFlow wheel exists. `runtime.txt` alone didn't resolve it; fixed via an explicit Python version override in Advanced Settings.
+
+4. **Missing production data for cloud deployment** — Batch Inspection depended on validation images that existed only locally. Resolved by committing a demonstration subset with documented (unknown-license) attribution rather than publishing the full dataset.
+
+The lesson: **A 98.89% accuracy number means nothing if you can't verify how it was produced — and that includes verifying advice before acting on it, not just verifying your own code.**
+
+---
+
+## Deployment
+
+App is live at: **https://steel-defect-analysis.streamlit.app**
+
+**Deployment setup:**
+- Python 3.11 pinned via Streamlit Cloud Advanced Settings
+- TensorFlow 2.15.0 and Keras 2.15.0 pinned in `requirements.txt` as a precaution to keep the deployed environment consistent with the local training environment
+- Validation subset (360 images) committed for batch mode demonstration
+
+---
+
+## Data Attribution
+
+NEU Steel Surface Defect Dataset from [Kaggle](https://www.kaggle.com/datasets/kaustubhdikshit/neu-surface-defect-database). License field on Kaggle lists "Unknown". The validation subset (360 images) is included solely for demonstration of the batch inspection feature. If you are the rights holder and object to this inclusion, open an issue for removal.
+
+The MIT license below applies to the code in this repository only. It does not extend to the NEU-DET dataset images above, or to weights derived from MobileNetV2's pretrained ImageNet base, which is licensed separately by Google/TensorFlow under Apache 2.0.
+
+---
+
+## Project Structure
+
+```
 steel-defect-analysis/
 ├── Phase1_SQL_Analysis/
 │   ├── scripts/
@@ -88,102 +106,91 @@ steel-defect-analysis/
 │   │   └── analysis_queries.sql
 │   └── fig/
 ├── Phase2_CNN_Classifier/
+│   ├── app.py
+│   ├── model_utils.py
 │   ├── data_prep.py
 │   ├── train_model.py
 │   ├── evaluate.py
+│   ├── find_errors.py
 │   ├── predict.py
 │   ├── best_model.h5
 │   └── confusion_matrix.png
+├── data/raw/NEU-DET/validation/   # Demo subset for cloud
 ├── README.md
+├── LICENSE
 ├── requirements.txt
+├── runtime.txt
 └── .gitignore
-🚀 SETUP INSTRUCTIONS
-Prerequisites
-Python 3.11
+```
 
-MySQL (XAMPP)
+---
 
-Git
+## Setup Instructions
 
-Quick Start
+### Prerequisites
+- Python 3.11
+- MySQL (XAMPP)
+- Git
+
+### Quick Start
+```bash
 git clone https://github.com/aftabkhan14022004/steel-defect-analysis.git
 cd steel-defect-analysis
 pip install -r requirements.txt
+```
 
-Phase 1 Setup
-Create MySQL database steel_defects
-
-Import schema: Phase1_SQL_Analysis/sql/schema.sql
-
-Download NEU dataset from Kaggle
-
-Place NEU-DET folder inside data/raw/
-
-Generate and load data:
+### Phase 1 Setup
+```bash
+# Create MySQL database: steel_defects
+# Import schema: Phase1_SQL_Analysis/sql/schema.sql
+# Download NEU dataset from Kaggle and place in data/raw/
 
 python Phase1_SQL_Analysis/scripts/generate_data.py
 python Phase1_SQL_Analysis/scripts/load_neu_data.py
-
-Run analysis:
-
 python Phase1_SQL_Analysis/scripts/eda.py
 python Phase1_SQL_Analysis/scripts/statistical_tests.py
+```
 
-Phase 2 Setup
-
-Train the model:
-
+### Phase 2 Setup
+```bash
 python Phase2_CNN_Classifier/train_model.py
-
-Evaluate:
-
 python Phase2_CNN_Classifier/evaluate.py
+streamlit run Phase2_CNN_Classifier/app.py
+```
 
-Predict single image:
+---
 
-python Phase2_CNN_Classifier/predict.py
+## Technologies Used
+- **Python:** pandas, NumPy, TensorFlow, Keras, Streamlit, scikit-learn
+- **SQL:** MySQL, CTEs, window functions, subqueries
+- **Visualization:** Matplotlib, Seaborn
+- **Deployment:** Streamlit Cloud
 
-🛠️ TECH STACK
+---
 
-Phase 1
+## Key Learnings
+- Designed a normalized relational database with foreign keys
+- Wrote production-level SQL (CTEs, window functions, subqueries)
+- Built a transfer learning CNN achieving 98.89% test accuracy
+- Deployed an interactive industrial inspection system, including resolving a real cloud deployment blocker (Python/TensorFlow wheel incompatibility)
+- Diagnosed and fixed a genuine silent model-checkpoint bug that was producing contradictory reported metrics
+- Learned to verify claims — including advice from an AI assistant — against actual source files rather than trusting a remembered or reported summary
+- Learned that a single impressive-looking accuracy number means little without a reproducible, traceable evaluation process behind it
 
-Python, pandas, NumPy, MySQL, SQL, Matplotlib, Seaborn, SciPy
+---
 
-Phase 2
+## Future Work
+- Database integration for inspection logging (MySQL), connecting to the Phase 1 schema
+- Fine-tune MobileNetV2 base layers — requires re-establishing reproducibility (fixed seeds) first, given past instability observed with the frozen-base model
+- YOLO for defect localization (bounding boxes)
 
-TensorFlow, Keras, MobileNetV2, scikit-learn, Matplotlib, Seaborn
+---
 
-💡 KEY LEARNINGS
+## Author
 
-Designed normalized relational database with foreign keys
+**Aftab Khan**
+📧 aftabkhan14022004@gmail.com
+🔗 [LinkedIn](https://www.linkedin.com/in/aftab1402/)
+🐙 [GitHub](https://github.com/aftabkhan14022004)
 
-Wrote production-level SQL (CTEs, window functions, subqueries)
-
-Handled real-world messy data and documented every decision
-
-Ran formal hypothesis tests and interpreted p-values honestly
-
-Built transfer learning CNN with 99.17% test accuracy
-
-Learned when tabular analysis fails and image-based approaches succeed
-
-👤 AUTHOR
-
-Aftab Khan
-
-Email: aftabkhan14022004@gmail.com
-
-LinkedIn: https://www.linkedin.com/in/aftab1402/
-
-GitHub: https://github.com/aftabkhan14022004
-
-If this project helped you, consider giving it a star on GitHub!
-
-Copy everything above. Paste into README.md. Save. Then push:
-
-git add README.md
-git commit -m "Final README with accuracy context"
-git push origin master
-
-Your project is complete. 🎉
-
+If this project helped you, a ⭐ on GitHub would be appreciated!
