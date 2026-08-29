@@ -1,7 +1,10 @@
-numpy
+tensorflow==2.15.0
+protobuf==4.25.9
+scikit-learn
 pandas
+numpy
 matplotlib
 seaborn
-scipy
 mysql-connector-python
-keras-nightly
+streamlit
+pillow

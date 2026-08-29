@@ -2,6 +2,12 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers, models
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
+import numpy as np
+
+import random
+random.seed(42)
+np.random.seed(42)
+tf.random.set_seed(42)
 
 # Image settings
 IMG_SIZE = (224, 224)
@@ -32,11 +38,10 @@ val_ds = keras.preprocessing.image_dataset_from_directory(
     shuffle=False
 )
 
-# Normalize pixel values to 0-1
-normalization_layer = layers.Rescaling(1./255)
+preprocess_input = keras.applications.mobilenet_v2.preprocess_input
 
-train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
-val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
+train_ds = train_ds.map(lambda x, y: (preprocess_input(x), y))
+val_ds = val_ds.map(lambda x, y: (preprocess_input(x), y))
 
 # Load pre-trained MobileNetV2
 base_model = keras.applications.MobileNetV2(

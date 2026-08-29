@@ -1,62 +1,35 @@
-import tensorflow as tf
-from tensorflow import keras
+import os
 import numpy as np
-from sklearn.metrics import classification_report, confusion_matrix
-import seaborn as sns
-import matplotlib.pyplot as plt
+from model_utils import CLASS_NAMES, load_model, predict_from_path
 
-# Paths
 VALID_PATH = r"C:\Users\aftab\Desktop\Steel_project\data\raw\NEU-DET\validation\images"
-IMG_SIZE = (224, 224)
-BATCH_SIZE = 32
-NUM_CLASSES = 6
 
-# Class names
-CLASS_NAMES = ['crazing', 'inclusion', 'patches', 'pitted_surface', 'rolled-in_scale', 'scratches']
+model = load_model()
 
-# Load validation dataset
-val_ds = keras.preprocessing.image_dataset_from_directory(
-    VALID_PATH,
-    image_size=IMG_SIZE,
-    batch_size=BATCH_SIZE,
-    label_mode='categorical',
-    color_mode='rgb',
-    shuffle=False
-)
-
-# Normalize
-normalization_layer = keras.layers.Rescaling(1./255)
-val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
-
-# Load best model
-model = keras.models.load_model('best_model.h5')
-
-# Get predictions
 y_true = []
 y_pred = []
 
-for images, labels in val_ds:
-    predictions = model.predict(images, verbose=0)
-    y_true.extend(np.argmax(labels.numpy(), axis=1))
-    y_pred.extend(np.argmax(predictions, axis=1))
+for class_name in CLASS_NAMES:
+    class_path = os.path.join(VALID_PATH, class_name)
+    if not os.path.isdir(class_path):
+        continue
 
-# Classification report
-print("\n=== Classification Report ===\n")
+    for img_file in os.listdir(class_path):
+        if not img_file.endswith('.jpg'):
+            continue
+
+        img_path = os.path.join(class_path, img_file)
+        predicted, _ = predict_from_path(img_path, model)
+
+        y_true.append(class_name)
+        y_pred.append(predicted)
+
+from sklearn.metrics import classification_report, confusion_matrix
+
+print("\n=== Classification Report ===")
 print(classification_report(y_true, y_pred, target_names=CLASS_NAMES))
 
-# Confusion matrix
-cm = confusion_matrix(y_true, y_pred)
+cm = confusion_matrix(y_true, y_pred, labels=CLASS_NAMES)
 
-plt.figure(figsize=(10, 8))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-            xticklabels=CLASS_NAMES, yticklabels=CLASS_NAMES)
-plt.title('Confusion Matrix - Steel Surface Defect Classification')
-plt.xlabel('Predicted')
-plt.ylabel('Actual')
-plt.tight_layout()
-plt.savefig('confusion_matrix.png', dpi=150)
-plt.show()
-
-# Final accuracy
 accuracy = np.sum(np.array(y_true) == np.array(y_pred)) / len(y_true)
-print(f"\nOverall Test Accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
+print(f"Overall Test Accuracy: {accuracy:.4f} ({accuracy * 100:.2f}%)")
