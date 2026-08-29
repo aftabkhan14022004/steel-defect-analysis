@@ -13,7 +13,7 @@ def get_preprocess_input():
 def load_model():
     import os
     model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "best_model.h5")
-    return keras.models.load_model(model_path)
+    return keras.models.load_model(model_path.replace('.h5', '.keras'))
 
 def preprocess_image_from_path(image_path):
     img = keras.preprocessing.image.load_img(
