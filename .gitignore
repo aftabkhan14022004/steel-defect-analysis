@@ -1,5 +1,5 @@
 # NEU dataset images – not for redistribution
-data/raw/
+data/raw/NEU-DET/train/
 
 # Python virtual environment
 .venv/
