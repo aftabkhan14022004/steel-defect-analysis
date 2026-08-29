@@ -11,11 +11,49 @@ A two-phase project combining SQL, statistical analysis, and deep learning for i
 
 ## Project Overview
 
-### Phase 1 — Data Analytics & SQL
-Designed a 3-table MySQL database combining 1,800 real NEU steel defect images with 5,000 synthetic production batches. Wrote advanced SQL (CTEs, window functions, subqueries), performed EDA, and ran statistical tests.
+This project has two phases: SQL-based statistical analysis on production data (Phase 1), and a deployed CNN classifier for defect detection from images (Phase 2).
 
 ### Phase 2 — Deep Learning & Streamlit App
 Built a CNN classifier using MobileNetV2 transfer learning, achieving 98.89% test accuracy. Deployed as a live industrial inspection system with single-image and batch modes.
+
+---
+
+## Phase 1: SQL Analysis & Statistical Testing
+
+### Database Schema
+Three normalized tables with foreign keys:
+- **production_batches** — batch_id, timestamp, shift, furnace_temp, rolling_speed
+- **defect_inspections** — inspection_id, batch_id (FK), defect_type, defect_count
+- **machine_parameters** — batch_id (FK), operator_id, machine_id
+
+### Data
+- 5,000 synthetic production batches with realistic parameters (furnace temp ~1200°C, rolling speed 5–15 m/min, 3-shift pattern)
+- 1,800 real NEU defect images linked to batches
+- Deliberate messiness: 2% missing temperatures, 5 duplicate batch IDs, mixed timestamp formats
+
+### SQL Queries Written
+1. **Rolling defect rate** — CTE to clean timestamps, then window function for 5-batch moving average
+2. **Shift-level aggregation** — CTE joining batches and inspections, grouped by shift
+3. **High-defect batches vs machine settings** — Subquery to find batches above overall average
+
+### Statistical Tests
+
+| Hypothesis | Test | p-value | Verdict |
+|------------|------|---------|---------|
+| Shift affects defect type | Chi-square | 0.126 | Not significant |
+| Temperature affects defect rate | Welch's t-test | 0.276 | Not significant |
+| Speed correlates with defects | Pearson r | 0.058 | Not significant |
+
+**Key finding:** No single process parameter showed statistical significance in the synthetic tabular data. This motivated Phase 2 — using the actual defect images directly.
+
+### EDA Visualizations
+- Defect type distribution
+- Defect counts by shift (countplot and boxplot)
+- Total defects vs rolling speed (scatter with regression)
+- Furnace temperature histogram
+- Probability heatmap P(defect_type | shift)
+
+![Probability Heatmap](Phase1_SQL_Analysis/fig/probability_heatmap.png)
 
 ---
 
@@ -68,10 +106,8 @@ The model accuracy was easy. The engineering around it was the real work.
 
 4. **Missing production data for cloud deployment** — Batch Inspection depended on validation images that existed only locally. Resolved by committing a demonstration subset with documented (unknown-license) attribution rather than publishing the full dataset.
 
-5. **5. **Keras v3 format conversion and revert** — Attempted converting the model to
-   `.keras` format for cloud compatibility. This was reverted in favor of the
-   original `.h5` file with `keras==2.15.0` pinned in requirements.txt, which
-   matched the local training environment and resolved cloud deployment.**
+5. **Keras v3 format conversion and revert** — Attempted converting the model to `.keras` format for cloud compatibility. This was reverted in favor of the original `.h5` file with `keras==2.15.0` pinned in `requirements.txt`, which matched the local training environment and resolved cloud deployment.
+
 The lesson: **A 98.89% accuracy number means nothing if you can't verify how it was produced — and that includes verifying advice before acting on it, not just verifying your own code.**
 
 ---
