@@ -68,6 +68,10 @@ The model accuracy was easy. The engineering around it was the real work.
 
 4. **Missing production data for cloud deployment** — Batch Inspection depended on validation images that existed only locally. Resolved by committing a demonstration subset with documented (unknown-license) attribution rather than publishing the full dataset.
 
+5. **5. **Keras v3 format conversion and revert** — Attempted converting the model to
+   `.keras` format for cloud compatibility. This was reverted in favor of the
+   original `.h5` file with `keras==2.15.0` pinned in requirements.txt, which
+   matched the local training environment and resolved cloud deployment.**
 The lesson: **A 98.89% accuracy number means nothing if you can't verify how it was produced — and that includes verifying advice before acting on it, not just verifying your own code.**
 
 ---
