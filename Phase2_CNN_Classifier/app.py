@@ -1,12 +1,12 @@
 import streamlit as st
 from PIL import Image
 from model_utils import CLASS_NAMES, load_model, preprocess_image_from_array, make_gradcam_heatmap, overlay_gradcam, log_inspection
-import mysql.connector
 import tensorflow as tf
 import numpy as np
 import pandas as pd
 from datetime import datetime
 import os
+import mysql.connector
 
 st.set_page_config(page_title="Steel Defect Inspection", layout="wide")
 
@@ -24,6 +24,12 @@ st.sidebar.info(
     "**Test Accuracy:** 98.89%\n\n"
     "**Cross-Validation:** 99.56% ± 0.38%"
 )
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**Model Details:**")
+st.sidebar.write("Architecture: MobileNetV2 Transfer Learning")
+st.sidebar.write("Input: 224×224×3")
+st.sidebar.write("Classes: 6")
 
 st.sidebar.header("Defect Types")
 defect_info = {
@@ -121,9 +127,7 @@ if inspection_mode == "Single Image Inspection":
                     st.write(f"Prediction confidence exceeds acceptance threshold.")
 
                 if confidence >= LOW_CONFIDENCE_THRESHOLD:
-                    st.write(f"**Predicted Defect:** {predicted_class}")
-                    st.write(f"**Confidence:** {confidence:.2f}%")
-                    st.progress(int(confidence) / 100)
+                    st.metric("Confidence", f"{confidence:.2f}%")
 
                 st.write("**Top 3 Predictions:**")
                 for cls, prob in top_3:
@@ -159,6 +163,8 @@ if inspection_mode == "Single Image Inspection":
                 decision=decision,
                 line_number=line_number
             )
+
+            st.toast(f"✅ Inspection logged: {predicted_class} ({confidence:.2f}%)")
 
             inspection_no = len(st.session_state.history) + 1
             st.session_state.history.append({
@@ -306,6 +312,10 @@ else:
             col3.metric("🔴 Reject", reject_count)
             col4.metric("⚫ Low-Conf", low_conf_count)
 
+            # Average confidence
+            avg_conf = df['Confidence'].str.rstrip('%').astype(float).mean()
+            st.metric("📊 Avg Confidence", f"{avg_conf:.2f}%")
+
             st.write("---")
             if reject_count > 0:
                 st.error(f"🚨 **Line Status: CRITICAL** — {reject_count} images rejected")
@@ -336,6 +346,8 @@ else:
                 mime="text/csv"
             )
 
+            st.toast(f"✅ Batch complete: {len(results)} images processed")
+
 with st.expander("📜 Inspection History (Session)"):
     if st.session_state.history:
         history_df = pd.DataFrame(st.session_state.history)
@@ -346,7 +358,6 @@ with st.expander("📜 Inspection History (Session)"):
 
 with st.expander("🗄️ Inspection Logs (Database)"):
     try:
-
         conn = mysql.connector.connect(
             host="localhost",
             user="root",
@@ -360,6 +371,10 @@ with st.expander("🗄️ Inspection Logs (Database)"):
         st.write(f"**Total logged inspections:** {len(db_df)}")
     except Exception as e:
         st.write(f"Database error: {e}")
+
+if st.button("🗑️ Clear Session History"):
+    st.session_state.history = []
+    st.rerun()
 
 st.markdown("---")
 st.markdown("*Industrial Quality Inspection Demo — Built with TensorFlow, Keras, and Streamlit*")

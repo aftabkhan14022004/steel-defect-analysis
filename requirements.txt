@@ -1,10 +1,13 @@
 tensorflow==2.15.0
 keras==2.15.0
 protobuf==4.25.9
-streamlit
+numpy==1.26.4
+opencv-python-headless==4.9.0.80
+streamlit==1.35.0
 pillow
 numpy
 pandas
 scikit-learn
 matplotlib
 seaborn
+mysql-connector-python
