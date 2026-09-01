@@ -532,6 +532,7 @@ with st.expander("📜 Inspection History (Session)"):
         st.write("No inspections logged yet.")
 
 with st.expander("🗄️ Inspection Logs (Database)"):
+    st.info("ℹ️ Database logs available when running locally. Cloud demo cannot connect to local MySQL — expected.")
     try:
         conn = mysql.connector.connect(host="localhost", user="root", password="", database="steel_defects")
         query = "SELECT * FROM inspection_log ORDER BY inspection_id DESC LIMIT 20"
@@ -540,8 +541,8 @@ with st.expander("🗄️ Inspection Logs (Database)"):
         db_df.index = db_df.index + 1
         st.dataframe(db_df, use_container_width=True)
         st.write(f"**Total logged inspections:** {len(db_df)}")
-    except Exception as e:
-        st.write(f"Database error: {e}")
+    except Exception:
+        st.write("*Local MySQL not reachable from Cloud — run locally to see logs.*")
 
 if st.button("🗑️ Clear Session History"):
     st.session_state.history = []
