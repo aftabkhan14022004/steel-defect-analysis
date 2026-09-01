@@ -1,6 +1,7 @@
 import streamlit as st
 from PIL import Image
 from model_utils import CLASS_NAMES, load_model, preprocess_image_from_array, make_gradcam_heatmap, overlay_gradcam, log_inspection
+import mysql.connector
 import tensorflow as tf
 import numpy as np
 import pandas as pd
@@ -342,6 +343,23 @@ with st.expander("📜 Inspection History (Session)"):
         st.write(f"**Total Inspections:** {len(history_df)}")
     else:
         st.write("No inspections logged yet.")
+
+with st.expander("🗄️ Inspection Logs (Database)"):
+    try:
+
+        conn = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="steel_defects"
+        )
+        query = "SELECT * FROM inspection_log ORDER BY inspection_id DESC LIMIT 20"
+        db_df = pd.read_sql(query, conn)
+        conn.close()
+        st.dataframe(db_df, use_container_width=True)
+        st.write(f"**Total logged inspections:** {len(db_df)}")
+    except Exception as e:
+        st.write(f"Database error: {e}")
 
 st.markdown("---")
 st.markdown("*Industrial Quality Inspection Demo — Built with TensorFlow, Keras, and Streamlit*")
