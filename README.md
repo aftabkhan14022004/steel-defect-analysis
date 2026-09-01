@@ -107,7 +107,7 @@ Three normalized tables with foreign keys:
 - TensorFlow 2.15.0, protobuf 4.25.9, numpy 1.26.4, and Streamlit 1.35.0 are pinned together deliberately — newer versions of any of these (especially numpy 2.x or unpinned Streamlit) reintroduce real dependency conflicts encountered during development.
 - **OOD detection is NOT solved.** A confidence threshold was tried as a cheap first pass but does not reliably catch true out-of-distribution inputs. Demonstrated: a cat photo scored 80%+ confidence and was classified as "scratches" (wrong). Proper OOD detection requires an embedding-distance or auxiliary-classifier approach.
 - **Grad-CAM does not reliably localize defects.** Tested against a known defect location (`inclusion_247.jpg`), the heatmap highlighted regions flanking the visible defect rather than the defect itself. Included as an interpretability starting point, not validated localization — a likely contributing factor is the Global Average Pooling layer immediately following the last convolutional layer, which is a known source of Grad-CAM imprecision in this architecture family.
-- **The in-app "Inspection Logs (Database)" panel connects to `localhost` with hardcoded credentials.** This works when running locally but will show a database error on the live Streamlit Cloud deployment, since the cloud server cannot reach a local MySQL instance. Logging itself still succeeds locally; only the in-app *display* of those logs is local-only.
+- **The in-app "Inspection Logs (Database)" panel and inspection logging connect to `localhost` with hardcoded credentials** (`root`, no password) directly in `model_utils.py` — fine for a local demo with no sensitive data, but not production practice. This works when running locally but cannot reach a local MySQL instance from Streamlit Cloud's servers. The app handles the cloud case gracefully — the panel shows an explanatory note ("Database logs available when running locally... expected") rather than an error, and the rest of the app is unaffected. Logging itself still succeeds locally; only the in-app *display* of those logs is local-only until a cloud-reachable database is provisioned (see Future Work).
 
 ---
 
@@ -220,8 +220,10 @@ python Phase1_SQL_Analysis/scripts/statistical_tests.py
 python Phase2_CNN_Classifier/train_model.py
 python Phase2_CNN_Classifier/evaluate.py
 
-# Set database environment variables before running the app locally:
-# DB_HOST, DB_USER, DB_PASSWORD, DB_NAME (see model_utils.py)
+# Database logging expects a local MySQL/MariaDB instance with:
+#   host: localhost, user: root, password: (blank), database: steel_defects
+# These are hardcoded in model_utils.py, not read from environment variables.
+# Run inspection_log_schema.sql against that database before logging will work.
 
 streamlit run Phase2_CNN_Classifier/app.py
 ```
@@ -255,6 +257,7 @@ streamlit run Phase2_CNN_Classifier/app.py
 - Investigate and fix Grad-CAM's defect-localization accuracy
 - No-Defect class (7th class for clean steel surfaces)
 - Reachable cloud database so inspection logging and the log-viewer work on the live deployment, not just locally
+- Move hardcoded database credentials (`model_utils.py`) to environment variables or Streamlit secrets, ahead of any real deployment
 - Foreign key from `inspection_log` to `production_batches` (currently standalone)
 - Operator dashboard with shift-wise analytics
 - Real-time camera feed integration
