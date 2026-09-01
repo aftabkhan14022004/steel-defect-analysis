@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-from model_utils import CLASS_NAMES, load_model, preprocess_image_from_array
+from model_utils import CLASS_NAMES, load_model, preprocess_image_from_array, make_gradcam_heatmap, overlay_gradcam, log_inspection
 import tensorflow as tf
 import numpy as np
 import pandas as pd
@@ -9,15 +9,14 @@ import os
 
 st.set_page_config(page_title="Steel Defect Inspection", layout="wide")
 
-# Clear any cached model from previous runs
 st.cache_resource.clear()
 
 CONFIDENCE_THRESHOLD = 85.0
+LOW_CONFIDENCE_THRESHOLD = 50.0
 
 st.title("🏭 Steel Surface Defect Inspection System")
 st.write("Automated visual quality inspection using deep learning.")
 
-# Sidebar
 st.sidebar.title("About")
 st.sidebar.info(
     "MobileNetV2 transfer learning model trained on NEU Steel Surface Defect Dataset.\n\n"
@@ -37,10 +36,8 @@ defect_info = {
 for defect, desc in defect_info.items():
     st.sidebar.markdown(f"**{defect}:** {desc}")
 
-
 def get_model():
     return load_model()
-
 
 def predict_with_all_probs(image, model):
     img_array = preprocess_image_from_array(image)
@@ -48,28 +45,29 @@ def predict_with_all_probs(image, model):
     predictions = model.predict(img_array, verbose=0)[0]
     return predictions
 
+def get_top_k_predictions(predictions, k=3):
+    top_indices = np.argsort(predictions)[::-1][:k]
+    return [(CLASS_NAMES[i], predictions[i] * 100) for i in top_indices]
 
 def get_decision(confidence):
-    if confidence >= 95:
+    if confidence < LOW_CONFIDENCE_THRESHOLD:
+        return "⚫ Low-Confidence Prediction", "⚫"
+    elif confidence >= 95:
         return "✅ Accept", "🟢"
     elif confidence >= CONFIDENCE_THRESHOLD:
         return "🟡 Review", "🟡"
     else:
         return "🔴 Reject", "🔴"
 
-
 model = get_model()
 
-# Inspection details
 st.sidebar.header("Inspection Details")
 batch_id = st.sidebar.text_input("Batch ID", value="B00001")
 line_number = st.sidebar.selectbox("Production Line", ["Line 1", "Line 2", "Line 3"])
 inspector_id = st.sidebar.text_input("Inspector ID", value="AUTO_INSPECTION")
 
-# Mode selection
 inspection_mode = st.radio("Select Mode:", ["Single Image Inspection", "Batch Inspection"])
 
-# Initialize session state
 if 'history' not in st.session_state:
     st.session_state.history = []
 
@@ -92,6 +90,7 @@ if inspection_mode == "Single Image Inspection":
             confidence = predictions[predicted_idx] * 100
 
             decision, icon = get_decision(confidence)
+            top_3 = get_top_k_predictions(predictions, k=3)
 
             with col2:
                 st.write(f"**Inspection Time:** {inspection_time}")
@@ -101,7 +100,15 @@ if inspection_mode == "Single Image Inspection":
                 st.write("---")
                 st.write(f"### {icon} Quality Decision: {decision}")
 
-                if confidence < CONFIDENCE_THRESHOLD:
+                if confidence < LOW_CONFIDENCE_THRESHOLD:
+                    st.warning(
+                        f"### ⚫ Low confidence across all defect classes ({confidence:.2f}% top match)\n\n"
+                        f"The model is not confident this image matches any of the 6 trained defect "
+                        f"types well. This may be a genuinely ambiguous defect case, or an image "
+                        f"outside the model's training distribution — this threshold alone cannot "
+                        f"distinguish between the two. Route to manual inspection."
+                    )
+                elif confidence < CONFIDENCE_THRESHOLD:
                     st.error("### ⚠️ Manual Inspection Required")
                     st.write(
                         f"This prediction has **{confidence:.2f}%** confidence, "
@@ -112,9 +119,14 @@ if inspection_mode == "Single Image Inspection":
                     st.success(f"### ✅ Automated Inspection Passed")
                     st.write(f"Prediction confidence exceeds acceptance threshold.")
 
-                st.write(f"**Predicted Defect:** {predicted_class}")
-                st.write(f"**Confidence:** {confidence:.2f}%")
-                st.progress(int(confidence) / 100)
+                if confidence >= LOW_CONFIDENCE_THRESHOLD:
+                    st.write(f"**Predicted Defect:** {predicted_class}")
+                    st.write(f"**Confidence:** {confidence:.2f}%")
+                    st.progress(int(confidence) / 100)
+
+                st.write("**Top 3 Predictions:**")
+                for cls, prob in top_3:
+                    st.write(f"- {cls}: {prob:.2f}%")
 
             with st.expander("📊 Class Probabilities"):
                 probs = {CLASS_NAMES[i]: float(predictions[i]) * 100 for i in range(len(CLASS_NAMES))}
@@ -124,15 +136,30 @@ if inspection_mode == "Single Image Inspection":
 
             with st.expander("🔧 Preprocessing Details"):
                 st.write(
-                    "1. Resized to 224×224 pixels\n"
+                    "1. Resized to 224×224 pixels (nearest-neighbor interpolation)\n"
                     "2. Converted to RGB (3 channels)\n"
                     "3. Normalized with MobileNetV2 ImageNet preprocessing\n"
                     "4. Expanded to batch dimension"
                 )
 
-            # Log to history
-            inspection_no = len(st.session_state.history) + 1
+            with st.expander("🔥 Grad-CAM: What the Model Looked At"):
+                img_array_for_cam = preprocess_image_from_array(image)
+                img_array_for_cam = tf.expand_dims(img_array_for_cam, 0)
+                heatmap = make_gradcam_heatmap(img_array_for_cam, model)
+                gradcam_image = overlay_gradcam(image, heatmap)
+                st.image(gradcam_image, caption="Red/yellow regions influenced the prediction most", width=350)
 
+            log_inspection(
+                batch_id=batch_id,
+                image_file=uploaded_file.name,
+                actual_defect="unknown",
+                predicted_defect=predicted_class,
+                confidence=confidence,
+                decision=decision,
+                line_number=line_number
+            )
+
+            inspection_no = len(st.session_state.history) + 1
             st.session_state.history.append({
                 'No.': inspection_no,
                 'Time': inspection_time,
@@ -151,13 +178,11 @@ else:
     st.write("### Batch Inspection Setup")
     st.write("Select defect classes, then choose individual images for inspection.")
 
-    # Relative path to validation images
     VALID_PATH = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         "data", "raw", "NEU-DET", "validation", "images"
     )
 
-    # Select all classes option
     select_all_classes = st.checkbox("✅ Select ALL defect classes")
 
     if select_all_classes:
@@ -169,7 +194,6 @@ else:
             default=['crazing']
         )
 
-    # Number of images to show per class
     max_images_to_show = st.number_input(
         "Max images to display per class:",
         min_value=1,
@@ -177,7 +201,6 @@ else:
         value=30
     )
 
-    # Show images with checkboxes
     selected_images = []
 
     if selected_classes:
@@ -187,14 +210,9 @@ else:
                 st.write(f"### {class_name}")
                 all_files = [f for f in os.listdir(class_path) if f.endswith('.jpg')]
 
-                st.write(
-                    f"**{len(all_files)} images available, showing first {min(len(all_files), max_images_to_show)}**"
-                )
+                st.write(f"**{len(all_files)} images available, showing first {min(len(all_files), max_images_to_show)}**")
 
-                # Select all images for this class
-                select_all_images = st.checkbox(
-                    f"✅ Select ALL images in {class_name}", key=f"select_all_{class_name}"
-                )
+                select_all_images = st.checkbox(f"✅ Select ALL images in {class_name}", key=f"select_all_{class_name}")
 
                 display_files = all_files[:max_images_to_show]
 
@@ -228,7 +246,6 @@ else:
 
             results = []
             inspection_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
             progress_bar = st.progress(0)
 
             for idx, img_info in enumerate(selected_images):
@@ -239,6 +256,8 @@ else:
                 predicted_class = CLASS_NAMES[predicted_idx]
 
                 decision, icon = get_decision(confidence)
+                top_3 = get_top_k_predictions(predictions, k=3)
+                top_3_str = ", ".join(f"{cls} ({prob:.1f}%)" for cls, prob in top_3)
 
                 inspection_no = len(st.session_state.history) + 1
 
@@ -249,6 +268,7 @@ else:
                     'Actual': img_info['actual_class'],
                     'Predicted': predicted_class,
                     'Confidence': f"{confidence:.2f}%",
+                    'Top 3': top_3_str,
                     'Decision': decision,
                     'Batch': batch_id,
                     'Line': line_number
@@ -257,6 +277,16 @@ else:
                 results.append(result)
                 st.session_state.history.append(result)
 
+                log_inspection(
+                    batch_id=batch_id,
+                    image_file=img_info['file'],
+                    actual_defect=img_info['actual_class'],
+                    predicted_defect=predicted_class,
+                    confidence=confidence,
+                    decision=decision,
+                    line_number=line_number
+                )
+
                 progress_bar.progress((idx + 1) / len(selected_images))
 
             df = pd.DataFrame(results)
@@ -264,26 +294,27 @@ else:
             st.write(f"### Inspection Results | Batch: {batch_id} | Line: {line_number}")
             st.dataframe(df, use_container_width=True)
 
-            # Summary
             accept_count = sum(1 for r in results if "Accept" in r['Decision'])
             review_count = sum(1 for r in results if "Review" in r['Decision'])
-            reject_count = sum(1 for r in results if "Reject" in r['Decision'])
+            reject_count = sum(1 for r in results if "🔴 Reject" in r['Decision'])
+            low_conf_count = sum(1 for r in results if "Low-Confidence" in r['Decision'])
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             col1.metric("✅ Accept", accept_count)
             col2.metric("🟡 Review", review_count)
             col3.metric("🔴 Reject", reject_count)
+            col4.metric("⚫ Low-Conf", low_conf_count)
 
-            # Line status
             st.write("---")
             if reject_count > 0:
                 st.error(f"🚨 **Line Status: CRITICAL** — {reject_count} images rejected")
+            elif low_conf_count > 0:
+                st.warning(f"⚠️ **Line Status: NEEDS ATTENTION** — {low_conf_count} images returned low-confidence predictions")
             elif review_count > 0:
                 st.warning(f"⚠️ **Line Status: ATTENTION NEEDED** — {review_count} images flagged for review")
             else:
                 st.success("✅ **Line Status: NORMAL** — all inspections passed")
 
-            # Flagged images
             flagged_df = df[df['Decision'] != '✅ Accept']
             st.write("### 🚨 Flagged for Manual Review")
             if len(flagged_df) > 0:
@@ -292,12 +323,10 @@ else:
             else:
                 st.success("✅ All images passed automated inspection")
 
-            # Defect distribution
             st.write("### 📊 Predicted Defect Distribution")
             defect_counts = df['Predicted'].value_counts()
             st.bar_chart(defect_counts)
 
-            # Export CSV
             csv = df.to_csv(index=False)
             st.download_button(
                 label="📥 Export Results as CSV",
@@ -306,7 +335,6 @@ else:
                 mime="text/csv"
             )
 
-# Inspection History
 with st.expander("📜 Inspection History (Session)"):
     if st.session_state.history:
         history_df = pd.DataFrame(st.session_state.history)
